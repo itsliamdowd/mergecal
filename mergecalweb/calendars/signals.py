@@ -15,13 +15,35 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Source)
 @receiver(post_delete, sender=Source)
 def clear_calendar_cache_on_source(sender, instance, **kwargs):
-    # Construct the cache key similar to how you set it
-    cache_key = f"calendar_str_{instance.calendar.uuid}"
-
     if kwargs.get("created") is not None:
         action = "created" if kwargs.get("created") else "updated"
     else:
         action = "deleted"
+
+    # When a Calendar is deleted, its Sources are cascade-deleted.
+    # The post_delete signal fires after the Calendar is already gone,
+    # so accessing instance.calendar raises Calendar.DoesNotExist.
+    # In this case, we skip cache invalidation here since the Calendar's
+    # own post_delete signal (clear_calendar_cache_on_calendar) will handle it.
+    try:
+        calendar = instance.calendar
+    except Calendar.DoesNotExist:
+        logger.info(
+            "Source %s (calendar already deleted, skipping cache invalidation)",
+            action,
+            extra={
+                "event": LogEvent.SOURCE_ACTION,
+                "action": action,
+                "source_id": instance.pk,
+                "source_url": instance.url,
+                "source_name": instance.name,
+                "calendar_id": instance.calendar_id,
+            },
+        )
+        return
+
+    # Construct the cache key similar to how you set it
+    cache_key = f"calendar_str_{calendar.uuid}"
 
     logger.info(
         "Source %s",
@@ -32,10 +54,10 @@ def clear_calendar_cache_on_source(sender, instance, **kwargs):
             "source_id": instance.pk,
             "source_url": instance.url,
             "source_name": instance.name,
-            "calendar_uuid": instance.calendar.uuid,
-            "calendar_name": instance.calendar.name,
-            "user_id": instance.calendar.owner.pk,
-            "email": instance.calendar.owner.email,
+            "calendar_uuid": calendar.uuid,
+            "calendar_name": calendar.name,
+            "user_id": calendar.owner.pk,
+            "email": calendar.owner.email,
         },
     )
 
@@ -50,7 +72,7 @@ def clear_calendar_cache_on_source(sender, instance, **kwargs):
             "source_id": instance.pk,
             "source_name": instance.name,
             "action": action,
-            "calendar_uuid": instance.calendar.uuid,
+            "calendar_uuid": calendar.uuid,
         },
     )
 
