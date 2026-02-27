@@ -1,0 +1,5 @@
+[build]
+buildCommand = "pip install -r requirements/production.txt"
+
+[deploy]
+startCommand = "python manage.py migrate && gunicorn --bind 0.0.0.0:${PORT:-8000} config.wsgi:application"
