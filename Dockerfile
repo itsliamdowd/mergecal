@@ -1,0 +1,13 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY requirements/ requirements/
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements/production.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "python manage.py migrate && gunicorn --bind 0.0.0.0:${PORT:-8000} config.wsgi:application"]
