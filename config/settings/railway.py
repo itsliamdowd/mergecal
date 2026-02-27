@@ -23,6 +23,8 @@ CACHES = {
 CELERY_BROKER_URL = env("REDIS_URL")
 CELERY_RESULT_BACKEND = env("REDIS_URL")
 
+SECURE_SSL_REDIRECT = False
+
 # STATIC FILES - serve locally, no AWS needed
 STATIC_URL = "/static/"
 STATIC_ROOT = "/app/staticfiles"
