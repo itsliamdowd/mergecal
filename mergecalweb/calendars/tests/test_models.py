@@ -77,9 +77,9 @@ class TestCalendarModel:
     @pytest.mark.parametrize(
         ("tier", "limit"),
         [
-            (User.SubscriptionTier.FREE, 1),
-            (User.SubscriptionTier.PERSONAL, 2),
-            (User.SubscriptionTier.BUSINESS, 5),
+            (User.SubscriptionTier.FREE, 20),
+            (User.SubscriptionTier.PERSONAL, 20),
+            (User.SubscriptionTier.BUSINESS, 20),
         ],
     )
     def test_calendar_limits_by_tier(self, tier: str, limit: int) -> None:
@@ -111,14 +111,14 @@ class TestCalendarModel:
 
     def test_calendar_update_frequency_permissions(self) -> None:
         """Test update frequency restrictions based on subscription tier."""
-        free_id = str(uuid.uuid4())[:8]
+        personal_id = str(uuid.uuid4())[:8]
         business_id = str(uuid.uuid4())[:8]
 
         # Create users with unique usernames and emails
-        free_user = User.objects.create(
-            username=f"free_user_{free_id}",
-            email=f"free_{free_id}@example.com",
-            subscription_tier=User.SubscriptionTier.FREE,
+        personal_user = User.objects.create(
+            username=f"personal_user_{personal_id}",
+            email=f"personal_{personal_id}@example.com",
+            subscription_tier=User.SubscriptionTier.PERSONAL,
         )
         business_user = User.objects.create(
             username=f"business_user_{business_id}",
@@ -126,14 +126,14 @@ class TestCalendarModel:
             subscription_tier=User.SubscriptionTier.BUSINESS,
         )
 
-        # Free user cannot set custom frequency
-        cal_free = Calendar(
-            name="Free Calendar",
-            owner=free_user,
+        # Personal tier cannot set custom frequency
+        cal_personal = Calendar(
+            name="Personal Calendar",
+            owner=personal_user,
             update_frequency_seconds=300,  # Try to set 5 minutes
         )
         with pytest.raises(ValidationError):
-            cal_free.full_clean()
+            cal_personal.full_clean()
 
         # Business user can set custom frequency
         new_value = 300  # 5 minutes
@@ -283,10 +283,10 @@ END:VCALENDAR"""
     def test_source_customization_permissions(self) -> None:
         """Test source customization based on subscription tier."""
         # Create users and calendars
-        free_user = User.objects.create(
-            username="free_user",
-            email="free@example.com",
-            subscription_tier=User.SubscriptionTier.FREE,
+        personal_user = User.objects.create(
+            username="personal_user",
+            email="personal@example.com",
+            subscription_tier=User.SubscriptionTier.PERSONAL,
         )
         business_user = User.objects.create(
             username="business_user",
@@ -294,7 +294,9 @@ END:VCALENDAR"""
             subscription_tier=User.SubscriptionTier.BUSINESS,
         )
 
-        free_cal = Calendar.objects.create(name="Free Calendar", owner=free_user)
+        personal_cal = Calendar.objects.create(
+            name="Personal Calendar", owner=personal_user
+        )
         business_cal = Calendar.objects.create(
             name="Business Calendar",
             owner=business_user,
@@ -306,16 +308,16 @@ END:VCALENDAR"""
 VERSION:2.0
 END:VCALENDAR"""
 
-            # Free tier cannot customize sources
-            free_source = Source(
-                name="Free Source",
+            # Personal tier cannot customize sources
+            personal_source = Source(
+                name="Personal Source",
                 url="https://example.com/feed.ics",
-                calendar=free_cal,
+                calendar=personal_cal,
                 include_title=False,
                 custom_prefix="[Test]",
             )
             with pytest.raises(ValidationError):
-                free_source.full_clean()
+                personal_source.full_clean()
 
             # Business tier can customize sources
             business_source = Source(

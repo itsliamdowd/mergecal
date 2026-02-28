@@ -29,7 +29,7 @@ class User(AbstractUser):
     subscription_tier = CharField(
         max_length=14,
         choices=SubscriptionTier.choices,
-        default=SubscriptionTier.FREE,
+        default=SubscriptionTier.BUSINESS,
     )
 
     def get_absolute_url(self) -> str:
@@ -49,9 +49,10 @@ class User(AbstractUser):
     @property
     def show_branding(self) -> bool:
         """
-        User on Tier BUISNESS or SUPPORTER will not show branding.
+        User on Tier FREE, BUSINESS or SUPPORTER will not show branding.
         """
         return self.subscription_tier not in [
+            self.SubscriptionTier.FREE,
             self.SubscriptionTier.BUSINESS,
             self.SubscriptionTier.SUPPORTER,
         ]
@@ -59,6 +60,7 @@ class User(AbstractUser):
     @cached_property
     def can_set_update_frequency(self) -> bool:
         return self.subscription_tier in [
+            self.SubscriptionTier.FREE,
             self.SubscriptionTier.BUSINESS,
             self.SubscriptionTier.SUPPORTER,
         ]
@@ -66,6 +68,7 @@ class User(AbstractUser):
     @cached_property
     def can_remove_branding(self) -> bool:
         return self.subscription_tier in [
+            self.SubscriptionTier.FREE,
             self.SubscriptionTier.BUSINESS,
             self.SubscriptionTier.SUPPORTER,
         ]
@@ -73,6 +76,7 @@ class User(AbstractUser):
     @cached_property
     def can_customize_sources(self):
         return self.subscription_tier in [
+            self.SubscriptionTier.FREE,
             self.SubscriptionTier.BUSINESS,
             self.SubscriptionTier.SUPPORTER,
         ]

@@ -2,14 +2,14 @@
 
 
 class CalendarLimits:
-    FREE = 0
-    PERSONAL = 2
-    BUSINESS = 5
+    FREE = 20  # Same as BUSINESS - no free restrictions
+    PERSONAL = 20
+    BUSINESS = 20
     SUPPORTER = float("inf")
 
 
 class SourceLimits:
-    FREE = 0
+    FREE = 5  # Same as BUSINESS - no free restrictions
     PERSONAL = 3
     BUSINESS = 5
     SUPPORTER = float("inf")

@@ -5,7 +5,6 @@ from typing import Final
 
 from django.core.cache import cache
 from django.utils import timezone
-from icalendar import Alarm
 from icalendar import Calendar as ICalendar
 from icalendar import Event
 from icalendar import vDuration
@@ -44,21 +43,6 @@ class CalendarMergerService:
                 "owner_tier": self.calendar.owner.subscription_tier,
             },
         )
-
-        if self.calendar.owner.is_free_tier:
-            logger.warning(
-                "Free tier user accessing calendar, returning warning",
-                extra={
-                    "event": LogEvent.CALENDAR_MERGE,
-                    "status": "free-tier-warning",
-                    "calendar_uuid": self.calendar.uuid,
-                    "calendar_name": self.calendar.name,
-                    "owner_id": self.calendar.owner.pk,
-                    "owner_username": self.calendar.owner.username,
-                },
-            )
-            ical = self._add_tier_warnings()
-            return ical.to_ical().decode("utf-8")
 
         cache_key = f"calendar_str_{self.calendar.uuid}"
         cached_calendar = cache.get(cache_key)
@@ -211,46 +195,3 @@ class CalendarMergerService:
         # Add both X-PUBLISHED-TTL and REFRESH-INTERVAL for broader client support
         merged_calendar.add("X-PUBLISHED-TTL", refresh_interval_iso)
         merged_calendar.add("REFRESH-INTERVAL", refresh_interval_iso)
-
-    def _add_tier_warnings(self) -> ICalendar:
-        """Add warning events for free tier users"""
-        prodid = f"-//{self.calendar.name}//mergecal.org//"
-        version = "2.0"
-        calendar = ICalendar()
-        calendar.add("prodid", prodid)
-        calendar.add("version", version)
-        calendar.add("x-wr-calname", self.calendar.name)
-
-        warning_event = Event()
-        start_time = timezone.now()
-
-        warning_event.add(
-            "summary",
-            "⚠️ Action Required: Your MergeCal Access Has Been Discontinued",
-        )
-        description = (
-            "⚠️ Your MergeCal calendar has been discontinued.\n\n"
-            "🎁 Get 1 Month FREE on our Business Plan with code: FREEMONTH\n\n"
-            "Subscribe now to keep your calendars synchronized:\n"
-            "https://mergecal.org/pricing/"
-        )
-
-        warning_event.add("description", description)
-        warning_event.add("dtstart", start_time)
-        warning_event.add("dtend", start_time + timedelta(hours=24))
-        warning_event.add("priority", 1)
-        warning_event.add("uid", f"access-warning-{self.calendar.uuid}")
-
-        # Add alarm
-        alarm = Alarm()
-        alarm.add("action", "DISPLAY")
-        alarm.add(
-            "description",
-            "Your MergeCal access has been discontinued. Subscribe to our Business Plan - "  # noqa: E501
-            "1 Month FREE with code: FREEMONTH",
-        )
-        alarm.add("trigger", timedelta(hours=3))
-        warning_event.add_component(alarm)
-
-        calendar.add_component(warning_event)
-        return calendar
