@@ -70,46 +70,53 @@ def create_stripe_customer(
     user: User,
     **kwargs: dict[str, Any],
 ) -> None:
-    customers = Customer.objects.filter(email=user.email)
-    for customer in customers:
-        if not customer.subscriber:
-            logger.warning(
-                "Orphaned Stripe customer attached to user",
-                extra={
-                    "event": LogEvent.STRIPE_CUSTOMER_ATTACHED,
-                    "customer_id": customer.id,
-                    "user_id": user.pk,
-                    "username": user.username,
-                    "email": user.email,
-                },
-            )
-            customer.subscriber = user
-            customer.save()
-    if not customers:
-        customer, created = Customer.get_or_create(subscriber=user)
-        if created:
-            price = Price.objects.get(lookup_key="business_monthly")
-            stripe.Subscription.create(
-                customer=customer.id,
-                items=[{"price": price.id}],
-                trial_period_days=14,
-                payment_settings={"save_default_payment_method": "on_subscription"},
-                trial_settings={"end_behavior": {"missing_payment_method": "cancel"}},
-            )
-            # coupon = Coupon.objects.get(name="beta")
-            # customer.add_coupon(coupon)
-            logger.info(
-                "Stripe customer created with trial subscription",
-                extra={
-                    "event": LogEvent.STRIPE_CUSTOMER_CREATED,
-                    "user_id": user.pk,
-                    "username": user.username,
-                    "email": user.email,
-                    "customer_id": customer.id,
-                    "plan": price.lookup_key,
-                    "trial_days": 14,
-                },
-            )
+    try:
+        customers = Customer.objects.filter(email=user.email)
+        for customer in customers:
+            if not customer.subscriber:
+                logger.warning(
+                    "Orphaned Stripe customer attached to user",
+                    extra={
+                        "event": LogEvent.STRIPE_CUSTOMER_ATTACHED,
+                        "customer_id": customer.id,
+                        "user_id": user.pk,
+                        "username": user.username,
+                        "email": user.email,
+                    },
+                )
+                customer.subscriber = user
+                customer.save()
+        if not customers:
+            customer, created = Customer.get_or_create(subscriber=user)
+            if created:
+                price = Price.objects.get(lookup_key="business_monthly")
+                stripe.Subscription.create(
+                    customer=customer.id,
+                    items=[{"price": price.id}],
+                    trial_period_days=14,
+                    payment_settings={"save_default_payment_method": "on_subscription"},
+                    trial_settings={"end_behavior": {"missing_payment_method": "cancel"}},
+                )
+                logger.info(
+                    "Stripe customer created with trial subscription",
+                    extra={
+                        "event": LogEvent.STRIPE_CUSTOMER_CREATED,
+                        "user_id": user.pk,
+                        "username": user.username,
+                        "email": user.email,
+                        "customer_id": customer.id,
+                        "plan": price.lookup_key,
+                        "trial_days": 14,
+                    },
+                )
+    except Exception:
+        logger.warning(
+            "Stripe customer creation skipped (Stripe not configured)",
+            extra={
+                "user_id": user.pk,
+                "email": user.email,
+            },
+        )
 
 
 @djstripe_receiver("customer.subscription.trial_will_end")
